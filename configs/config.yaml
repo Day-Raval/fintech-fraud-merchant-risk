@@ -1,0 +1,34 @@
+project:
+  name: fintech-fraud-merchant-risk
+  seed: 42
+
+data:
+  n_customers: 5000
+  n_merchants: 800
+  n_cards: 7000
+  n_transactions: 250000
+  start_date: "2025-07-01"
+  days: 120
+  output_dir: "data"
+
+model:
+  time_split_days_train: 90
+  time_split_days_valid: 15
+  time_split_days_test: 15
+  alert_topk_per_day: 200
+  fp_investigation_cost: 7.50
+  fn_fraud_loss_multiplier: 1.00
+  decision_threshold: 0.80   # overridden by training threshold optimization
+
+artifacts:
+  model_path: "artifacts/models/fraud_model.joblib"
+  merchant_risk_path: "artifacts/models/merchant_risk.joblib"
+  metrics_path: "artifacts/metrics/metrics.json"
+  threshold_report_path: "artifacts/metrics/threshold_report.json"
+  model_card_path: "artifacts/reports/model_card.md"
+
+monitoring:
+  psi_bins: 10
+  psi_alert_threshold: 0.20
+  reference_window_days: 30
+  current_window_days: 7
