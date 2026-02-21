@@ -1,2 +1,3 @@
-run_ts,stage,sigmoid_shift,n_transactions,fraud_rate
-2026-02-21T15:45:03,generate,4.8,250000,0.066136
+run_ts,stage,sigmoid_shift,n_transactions,fraud_rate,train_fraud_rate,valid_fraud_rate,test_fraud_rate,valid_pr_auc,test_pr_auc,best_threshold,valid_recall_at_topk,test_recall_at_topk,valid_net_cost
+2026-02-21T15:45:03,generate,4.8,250000.0,0.066136,,,,,,,,,
+2026-02-21T15:52:58,train,4.8,,,0.06642034942925844,0.065790741752064,0.06477577615944806,0.3103024007801815,0.28811754846081994,0.060570987654320986,0.39208984375,0.381163708086785,-50310.390000000014
