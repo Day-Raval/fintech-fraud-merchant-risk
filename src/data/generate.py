@@ -12,6 +12,7 @@ import pandas as pd
 from src.common.logging import get_logger
 from src.common.utils import load_yaml
 from src.data.schema import CUSTOMERS_FILE, MERCHANTS_FILE, CARDS_FILE, TRANSACTIONS_FILE
+from src.common.experiment_log import log_experiment
 
 logger = get_logger(__name__)
 
@@ -209,6 +210,7 @@ def _simulate_transactions(
     start: datetime,
     days: int,
     n_txn: int,
+    shift: float,
 ) -> pd.DataFrame:
     """
     Creates realistic transaction streams with:
@@ -286,9 +288,13 @@ def _simulate_transactions(
         + rng.normal(0, 0.8, n_txn)
     )
 
-    fraud_prob = _sigmoid(score - 3.1)  # shift controls base rate
+    # fraud_prob = _sigmoid(score - 3.1)  # shift controls base rate
+    # shift = float(cfg["data"].get("sigmoid_shift", 3.1))
+    fraud_prob = _sigmoid(score - shift)
 
     is_fraud = (rng.random(n_txn) < fraud_prob).astype(int)
+
+    from src.common.experiment_log import log_experiment
 
     # Add a "velocity" feature by injecting bursts for a subset of fraudulent transactions:
     # We'll mark some fraud txns as part of a burst and later compute per-card velocity in build_dataset.py.
@@ -379,7 +385,9 @@ def main() -> None:
     cards = _build_cards(rng, g.n_cards, g.n_customers)
 
     logger.info("Generating transactions (this can take a moment for large N)...")
-    txns = _simulate_transactions(rng, customers, cards, merchants, start, g.days, g.n_transactions)
+
+    shift = float(cfg["data"].get("sigmoid_shift", 3.1))
+    txns = _simulate_transactions(rng, customers, cards, merchants, start, g.days, g.n_transactions, shift)
 
     # Save
     customers.to_csv(out / CUSTOMERS_FILE, index=False)
@@ -393,6 +401,13 @@ def main() -> None:
     fraud_rate = txns["is_fraud"].mean()
     logger.info(f"Done. Rows: customers={len(customers)}, merchants={len(merchants)}, cards={len(cards)}, txns={len(txns)}")
     logger.info(f"Fraud rate: {fraud_rate:.3%} (realistic imbalanced classification)")
+
+    log_experiment({
+    "stage": "generate",
+    "sigmoid_shift": float(cfg["data"].get("sigmoid_shift", 3.1)),
+    "n_transactions": int(cfg["data"]["n_transactions"]),
+    "fraud_rate": float(fraud_rate),
+    })
 
 
 if __name__ == "__main__":
