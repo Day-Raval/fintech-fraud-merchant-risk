@@ -69,11 +69,18 @@ def _sigmoid(x: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-x))
 
 
+# def _random_dates(rng: np.random.Generator, start: datetime, days: int, n: int) -> pd.Series:
+#     # Uniformly sample seconds across a window to mimic continuous activity.
+#     total_seconds = days * 24 * 60 * 60
+#     offsets = rng.integers(0, total_seconds, size=n)
+#     return pd.to_datetime([start + timedelta(seconds=int(s)) for s in offsets])
+
 def _random_dates(rng: np.random.Generator, start: datetime, days: int, n: int) -> pd.Series:
     # Uniformly sample seconds across a window to mimic continuous activity.
     total_seconds = days * 24 * 60 * 60
     offsets = rng.integers(0, total_seconds, size=n)
-    return pd.to_datetime([start + timedelta(seconds=int(s)) for s in offsets])
+    # Return a pandas Series so downstream code can use `.dt`
+    return pd.Series([start + timedelta(seconds=int(s)) for s in offsets], name="timestamp").astype("datetime64[ns]")
 
 
 def _build_customers(rng: np.random.Generator, n: int) -> pd.DataFrame:
