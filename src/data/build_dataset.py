@@ -63,6 +63,33 @@ def _compute_velocity_features(txns: pd.DataFrame) -> pd.DataFrame:
 
     return pd.concat(features, ignore_index=True)
 
+def _normalize_merchant_country_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensures a single canonical column name 'merchant_country' exists after merges.
+    Handles common suffix cases (merchant_country_x / merchant_country_y).
+    """
+    if "merchant_country" in df.columns:
+        return df
+
+    # Common collision outcomes from pandas merges
+    candidates = [c for c in df.columns if c.startswith("merchant_country")]
+    if not candidates:
+        raise KeyError(
+            "merchant_country missing after merges. "
+            "Check merchants.csv contains 'merchant_country' and merge keys are correct."
+        )
+
+    # Prefer non-null candidate (choose the one with most non-nulls)
+    best = max(candidates, key=lambda c: df[c].notna().sum())
+    df["merchant_country"] = df[best]
+
+    # Optional: drop the suffixed columns to avoid confusion
+    for c in candidates:
+        if c != "merchant_country":
+            df.drop(columns=[c], inplace=True, errors="ignore")
+
+    return df
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -90,6 +117,18 @@ def main() -> None:
             .merge(merchants, on="merchant_id", how="left")
             .merge(vel, on="transaction_id", how="left")
     )
+    df = _normalize_merchant_country_column(df)
+
+    # Defensive normalization for other merchant columns that may suffix
+    for col in ["mcc", "chargeback_rate", "merchant_size"]:
+        if col not in df.columns:
+            candidates = [c for c in df.columns if c.startswith(col)]
+            if candidates:
+                best = max(candidates, key=lambda c: df[c].notna().sum())
+                df[col] = df[best]
+                for c in candidates:
+                    if c != col:
+                        df.drop(columns=[c], inplace=True, errors="ignore")
 
     # Additional derived features (kept simple but realistic)
     df["hour"] = df["timestamp"].dt.hour
