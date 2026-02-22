@@ -1,6 +1,6 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "A2_conservative_cost15_topk150"
+  experiment_tag: "A1_Trial_Run"
   seed: 42
 
 data:

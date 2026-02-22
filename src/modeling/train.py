@@ -4,24 +4,24 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple, Any
 
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
+from src.common.experiment_log import log_experiment
 from src.common.logging import get_logger
-from src.common.utils import load_yaml, save_json
 from src.common.paths import RepoPaths
+from src.common.utils import load_yaml, save_json
 from src.data.schema import DATASET_FILE
 from src.features.preprocessing import FeatureSpec, build_preprocessor
-from src.modeling.evaluate import BizConfig, pr_auc, recall_at_topk, find_best_threshold
+from src.modeling.evaluate import pr_auc, recall_at_topk, find_best_threshold, BizConfig
 from src.modeling.merchant_risk import build_merchant_risk_table
-from src.common.experiment_log import log_experiment
 
 logger = get_logger(__name__)
 
@@ -37,55 +37,88 @@ def time_split(df: pd.DataFrame, split: SplitConfig) -> Tuple[pd.DataFrame, pd.D
     """
     Strict time split to mimic production: train on the past, validate/test on future.
     """
-    df = df.sort_values(FeatureSpec().time_col).copy()
-    t0 = pd.to_datetime(df[FeatureSpec().time_col].min())
+    fs = FeatureSpec()
+    df = df.sort_values(fs.time_col).copy()
+
+    t0 = pd.to_datetime(df[fs.time_col].min())
     train_end = t0 + timedelta(days=split.train_days)
     valid_end = train_end + timedelta(days=split.valid_days)
 
-    train = df[df[FeatureSpec().time_col] < train_end]
-    valid = df[(df[FeatureSpec().time_col] >= train_end) & (df[FeatureSpec().time_col] < valid_end)]
-    test = df[df[FeatureSpec().time_col] >= valid_end]
+    train = df[df[fs.time_col] < train_end]
+    valid = df[(df[fs.time_col] >= train_end) & (df[fs.time_col] < valid_end)]
+    test = df[df[fs.time_col] >= valid_end]
     return train, valid, test
 
 
-def build_model_pipeline(preproc: Pipeline, model_type: str) -> Pipeline:
+def build_model_pipeline(preproc: Pipeline, model_cfg: Dict[str, Any]) -> Pipeline:
     """
-    Two solid baselines:
-    - logreg: strong, fast, interpretable
-    - hgbt: gradient boosting baseline without external deps (often stronger)
+    Build the sklearn Pipeline: (preprocessor -> classifier)
+
+    Supports:
+    - logreg: fast baseline
+    - hgbt: strong non-linear baseline (no external deps)
     """
+    model_type = str(model_cfg.get("type", "hgbt")).lower()
+
     if model_type == "logreg":
-        clf = LogisticRegression(max_iter=200, n_jobs=None, class_weight="balanced")
+        clf = LogisticRegression(
+            max_iter=int(model_cfg.get("max_iter", 200)),
+            n_jobs=None,
+            class_weight="balanced",
+        )
     elif model_type == "hgbt":
         clf = HistGradientBoostingClassifier(
-            learning_rate=0.08,
-            max_depth=6,
-            max_iter=250,
-            random_state=42,
+            learning_rate=float(model_cfg.get("learning_rate", 0.08)),
+            max_depth=int(model_cfg.get("max_depth", 6)),
+            max_iter=int(model_cfg.get("max_iter", 250)),
+            random_state=int(model_cfg.get("random_state", 42)),
         )
     else:
-        raise ValueError(f"Unknown model_type={model_type}")
+        raise ValueError(f"Unknown model.type={model_type}. Use 'logreg' or 'hgbt'.")
 
-    return Pipeline(
-        steps=[
-            ("prep", preproc.named_steps["preprocessor"]),
-            ("clf", clf),
-        ]
-    )
+    # build_preprocessor returns a Pipeline that already includes "preprocessor"
+    # We want the preprocessor step only to avoid nesting.
+    return Pipeline(steps=[
+        ("prep", preproc.named_steps["preprocessor"]),
+        ("clf", clf),
+    ])
+
+
+def _require_keys(cfg: Dict[str, Any], section: str, keys: list[str]) -> None:
+    if section not in cfg:
+        raise KeyError(f"Missing '{section}' section in config.yaml")
+    missing = [k for k in keys if k not in cfg[section]]
+    if missing:
+        raise KeyError(f"Missing keys under '{section}' in config.yaml: {missing}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
+    parser.add_argument("--config", required=True, help="Path to configs/config.yaml")
     args = parser.parse_args()
 
     cfg = load_yaml(args.config)
     repo = RepoPaths(Path(".").resolve())
+    fs = FeatureSpec()
 
-    proc_dir = repo.processed_dir
-    df = pd.read_csv(proc_dir / DATASET_FILE, parse_dates=[FeatureSpec().time_col])
+    # ----- Validate config sections -----
+    _require_keys(cfg, "model", ["time_split_days_train", "time_split_days_valid", "time_split_days_test"])
+    _require_keys(cfg, "decisioning", ["fp_investigation_cost", "alert_topk_per_day", "fn_loss_multiplier"])
+    # model hyperparams are optional, but section may exist
+    model_cfg = cfg.get("model_params", {"type": "hgbt"})
 
-    # Splits
+    # ----- Load processed dataset -----
+    proc_path = repo.processed_dir / DATASET_FILE
+    df = pd.read_csv(proc_path, parse_dates=[fs.time_col])
+
+    if fs.target not in df.columns:
+        raise KeyError(f"Target column '{fs.target}' not found in dataset at {proc_path}.")
+    if fs.time_col not in df.columns:
+        raise KeyError(f"Time column '{fs.time_col}' not found in dataset at {proc_path}.")
+    if "amount_usd" not in df.columns:
+        raise KeyError("Required column 'amount_usd' not found. It's needed for cost-based thresholding.")
+
+    # ----- Splits -----
     split = SplitConfig(
         train_days=int(cfg["model"]["time_split_days_train"]),
         valid_days=int(cfg["model"]["time_split_days_valid"]),
@@ -94,49 +127,62 @@ def main() -> None:
     train_df, valid_df, test_df = time_split(df, split)
 
     logger.info(f"Split sizes: train={len(train_df)}, valid={len(valid_df)}, test={len(test_df)}")
-    logger.info(f"Fraud rates: train={train_df.is_fraud.mean():.3%}, valid={valid_df.is_fraud.mean():.3%}, test={test_df.is_fraud.mean():.3%}")
+    logger.info(
+        f"Fraud rates: train={train_df[fs.target].mean():.3%}, valid={valid_df[fs.target].mean():.3%}, test={test_df[fs.target].mean():.3%}"
+    )
 
-    # Preprocessing
+    # Defensive: ensure splits are non-empty
+    if len(train_df) == 0 or len(valid_df) == 0 or len(test_df) == 0:
+        raise ValueError("One of the splits is empty. Adjust time_split_days_* in config.yaml.")
+
+    # ----- Preprocessing -----
     preproc, num_cols, cat_cols = build_preprocessor(train_df)
 
-    # Train strong model + calibrate
-    base_model = build_model_pipeline(preproc, model_type="hgbt")
+    # ----- Train base model -----
+    base_model = build_model_pipeline(preproc, model_cfg)
 
-    X_train = train_df.drop(columns=[FeatureSpec().target])
-    y_train = train_df[FeatureSpec().target].astype(int).values
+    X_train = train_df.drop(columns=[fs.target])
+    y_train = train_df[fs.target].astype(int).values
 
-    logger.info("Fitting base model (HistGradientBoosting)...")
+    logger.info(f"Fitting base model ({model_cfg.get('type', 'hgbt')})...")
     base_model.fit(X_train, y_train)
 
-    # Calibration improves probability quality (important for thresholding/cost)
-    logger.info("Calibrating probabilities with isotonic regression (on validation)...")
-    X_valid = valid_df.drop(columns=[FeatureSpec().target])
-    y_valid = valid_df[FeatureSpec().target].astype(int).values
+    # ----- Calibration -----
+    X_valid = valid_df.drop(columns=[fs.target])
+    y_valid = valid_df[fs.target].astype(int).values
 
+    logger.info("Calibrating probabilities with isotonic regression (on validation)...")
     calibrated = CalibratedClassifierCV(base_model, method="isotonic", cv="prefit")
     calibrated.fit(X_valid, y_valid)
 
-    # Evaluate
+    # ----- Predict -----
     valid_prob = calibrated.predict_proba(X_valid)[:, 1]
-    test_X = test_df.drop(columns=[FeatureSpec().target])
-    test_y = test_df[FeatureSpec().target].astype(int).values
-    test_prob = calibrated.predict_proba(test_X)[:, 1]
+    X_test = test_df.drop(columns=[fs.target])
+    y_test = test_df[fs.target].astype(int).values
+    test_prob = calibrated.predict_proba(X_test)[:, 1]
+
+    # ----- Decisioning config (THIS drives threshold) -----
+    d = cfg["decisioning"]
+    fp_cost = float(d["fp_investigation_cost"])
+    topk_per_day = int(d["alert_topk_per_day"])
+    fn_mult = float(d["fn_loss_multiplier"])
 
     biz = BizConfig(
-        alert_topk_per_day=int(cfg["model"]["alert_topk_per_day"]),
-        fp_investigation_cost=float(cfg["model"]["fp_investigation_cost"]),
-        fn_fraud_loss_multiplier=float(cfg["model"]["fn_fraud_loss_multiplier"]),
+        alert_topk_per_day=topk_per_day,
+        fp_investigation_cost=fp_cost,
+        fn_fraud_loss_multiplier=fn_mult,
     )
 
     logger.info(
-    "Decisioning params: fp_cost=%s | topk_per_day=%s | fn_multiplier=%s | tag=%s",
-    cfg.get("decisioning", {}).get("fp_investigation_cost"),
-    cfg.get("decisioning", {}).get("alert_topk_per_day"),
-    cfg.get("decisioning", {}).get("fn_loss_multiplier"),
-    cfg.get("project", {}).get("experiment_tag"),
+        "Decisioning params: fp_cost=%.3f | topk_per_day=%d | fn_multiplier=%.3f | tag=%s",
+        fp_cost,
+        topk_per_day,
+        fn_mult,
+        cfg.get("project", {}).get("experiment_tag", ""),
     )
-    
-    # Best threshold via cost on validation
+
+    # ----- Best threshold (must respond to decisioning changes) -----
+    # IMPORTANT: find_best_threshold must use fp_cost & fn_mult in its objective.
     best_t, threshold_report = find_best_threshold(
         y_true=y_valid,
         y_prob=valid_prob,
@@ -144,45 +190,60 @@ def main() -> None:
         amounts=valid_df["amount_usd"].values,
     )
 
-    # Metrics
+    # ----- Metrics -----
+    valid_days = max(1, valid_df[fs.time_col].dt.date.nunique())
+    test_days = max(1, test_df[fs.time_col].dt.date.nunique())
+
     metrics = {
-        "valid_pr_auc": pr_auc(y_valid, valid_prob),
-        "test_pr_auc": pr_auc(test_y, test_prob),
-        "valid_recall_at_topk": recall_at_topk(y_valid, valid_prob, k=biz.alert_topk_per_day * max(1, valid_df["timestamp"].dt.date.nunique())),
-        "test_recall_at_topk": recall_at_topk(test_y, test_prob, k=biz.alert_topk_per_day * max(1, test_df["timestamp"].dt.date.nunique())),
-        "best_threshold_valid_cost": best_t,
+        "valid_pr_auc": float(pr_auc(y_valid, valid_prob)),
+        "test_pr_auc": float(pr_auc(y_test, test_prob)),
+        "valid_recall_at_topk": float(recall_at_topk(y_valid, valid_prob, k=topk_per_day * valid_days)),
+        "test_recall_at_topk": float(recall_at_topk(y_test, test_prob, k=topk_per_day * test_days)),
+        "best_threshold_valid_cost": float(best_t),
         "threshold_report_valid": threshold_report,
+        "decisioning": {
+            "fp_investigation_cost": fp_cost,
+            "alert_topk_per_day": topk_per_day,
+            "fn_loss_multiplier": fn_mult,
+        },
+        "model_params": model_cfg,
     }
 
-    dataset_path = Path(cfg["data"]["processed_dataset_path"])  # or your path variable
+    # ----- Experiment logging (append-only) -----
     df_rows = int(len(df))
-    df_start = str(df["timestamp"].min())
-    df_end = str(df["timestamp"].max())
+    df_start = str(df[fs.time_col].min())
+    df_end = str(df[fs.time_col].max())
+
+    # Use actual processed dataset path (no fragile config key needed)
+    dataset_path = proc_path
 
     log_experiment({
         "stage": "train",
-        "sigmoid_shift": float(cfg["data"].get("sigmoid_shift", 3.1)),
-        "train_fraud_rate": float(train_df.is_fraud.mean()),
-        "valid_fraud_rate": float(valid_df.is_fraud.mean()),
-        "test_fraud_rate": float(test_df.is_fraud.mean()),
+        "log_tag": cfg.get("project", {}).get("experiment_tag", ""),
+        "sigmoid_shift": float(cfg.get("data", {}).get("sigmoid_shift", 3.1)),
+        "fp_investigation_cost": fp_cost,
+        "alert_topk_per_day": topk_per_day,
+        "fn_loss_multiplier": fn_mult,
+        "train_fraud_rate": float(train_df[fs.target].mean()),
+        "valid_fraud_rate": float(valid_df[fs.target].mean()),
+        "test_fraud_rate": float(test_df[fs.target].mean()),
         "valid_pr_auc": float(metrics["valid_pr_auc"]),
         "test_pr_auc": float(metrics["test_pr_auc"]),
         "best_threshold": float(best_t),
         "valid_recall_at_topk": float(metrics["valid_recall_at_topk"]),
         "test_recall_at_topk": float(metrics["test_recall_at_topk"]),
-        "valid_net_cost": float(metrics["threshold_report_valid"]["net_cost_lower_is_better"]),
-        "log_tag": cfg.get("project", {}).get("experiment_tag", ""),
+        "valid_net_cost": float(threshold_report.get("net_cost_lower_is_better", np.nan)),
         "dataset_path": str(dataset_path),
         "dataset_rows": df_rows,
         "dataset_start_ts": df_start,
         "dataset_end_ts": df_end,
     })
 
-    # --- Per-experiment run directories ---
+    # ----- Per-experiment run directories -----
     tag = cfg.get("project", {}).get("experiment_tag", "default_run")
     tag = f"{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
     run_root = Path("artifacts/runs") / tag
+
     model_dir = run_root / "models"
     metrics_dir = run_root / "metrics"
     report_dir = run_root / "reports"
@@ -191,10 +252,10 @@ def main() -> None:
     metrics_dir.mkdir(parents=True, exist_ok=True)
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    # Merchant risk table (built from TRAIN only to avoid leakage)
+    # Merchant risk table (TRAIN only to avoid leakage)
     merchant_risk = build_merchant_risk_table(train_df)
 
-    # Save bundle: model + threshold + column spec for reason codes
+    # Save bundle: model + threshold + spec (used by API + reason codes)
     bundle = {
         "model": calibrated,
         "threshold": float(best_t),
@@ -204,7 +265,6 @@ def main() -> None:
         },
     }
 
-    # --- Save artifacts into THIS run folder ---
     model_path = model_dir / "fraud_model.joblib"
     merchant_risk_path = model_dir / "merchant_risk.joblib"
     metrics_path = metrics_dir / "metrics.json"
@@ -217,34 +277,43 @@ def main() -> None:
     save_json(metrics, str(metrics_path))
     save_json({"best_threshold": float(best_t), **threshold_report}, str(threshold_report_path))
 
-
+    # Model card
     model_card_path.write_text(
-    f"""# Model Card — Fraud Detection (Project 1)
+        f"""# Model Card — Fraud Detection (Project 1)
 
 ## Overview
 Binary classifier to predict transaction fraud probability for investigator prioritization.
 
 ## Data
-Synthetic-but-realistic transactions generated with:
-- customer/card/merchant/transaction schemas
-- injected fraud patterns: foreign, risky MCC, velocity, high amount, new tenure, late-night
+Synthetic-but-realistic transactions with injected fraud patterns:
+- foreign merchant / risky MCC
+- velocity bursts
+- high amount / amount-to-limit ratio
+- new customer tenure
+- late-night + e-commerce channel effects
 
 ## Training
 - Time-based split (no leakage)
-- Model: HistGradientBoosting + isotonic calibration
-- Threshold optimized using cost function (false positive investigation cost vs fraud loss)
+- Model: {model_cfg.get("type", "hgbt")}
+- Calibration: isotonic regression (validation set)
+- Threshold: cost-optimized on validation using:
+  - FP cost = {fp_cost}
+  - FN loss multiplier = {fn_mult}
+  - Alert budget (TopK/day) = {topk_per_day}
 
 ## Metrics
 - Valid PR-AUC: {metrics["valid_pr_auc"]:.4f}
 - Test PR-AUC: {metrics["test_pr_auc"]:.4f}
+- Valid Recall@TopK: {metrics["valid_recall_at_topk"]:.4f}
+- Test Recall@TopK: {metrics["test_recall_at_topk"]:.4f}
 - Best threshold (valid cost): {best_t:.4f}
 
 ## Operational Notes
-- Alert budget: Top-K per day supported via dashboard and threshold tuning
-- Reason codes: rule-based, stable explanations for investigators
+- Reason codes: rule-based and stable for investigators
+- Drift monitoring: PSI module supported separately
 """,
-    encoding="utf-8",
-)
+        encoding="utf-8",
+    )
 
     logger.info(f"Saved model: {model_path}")
     logger.info(f"Saved merchant risk table: {merchant_risk_path}")

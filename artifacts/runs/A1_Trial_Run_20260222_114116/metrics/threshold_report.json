@@ -1,0 +1,10 @@
+{
+  "best_threshold": 0.01,
+  "fp": 25557.0,
+  "fn": 26.0,
+  "tp": 2022.0,
+  "fp_cost": 25557.0,
+  "fn_fraud_loss": 891.9499999999999,
+  "fraud_prevented": 175877.62,
+  "net_cost_lower_is_better": -149428.66999999998
+}

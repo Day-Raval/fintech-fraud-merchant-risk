@@ -1,0 +1,24 @@
+{
+  "valid_pr_auc": 0.3103024007801815,
+  "test_pr_auc": 0.28811754846081994,
+  "valid_recall_at_topk": 0.3291015625,
+  "test_recall_at_topk": 0.3224852071005917,
+  "best_threshold_valid_cost": 0.01,
+  "threshold_report_valid": {
+    "fp": 25557.0,
+    "fn": 26.0,
+    "tp": 2022.0,
+    "fp_cost": 25557.0,
+    "fn_fraud_loss": 891.9499999999999,
+    "fraud_prevented": 175877.62,
+    "net_cost_lower_is_better": -149428.66999999998
+  },
+  "decisioning": {
+    "fp_investigation_cost": 1.0,
+    "alert_topk_per_day": 150,
+    "fn_loss_multiplier": 1.0
+  },
+  "model_params": {
+    "type": "hgbt"
+  }
+}
