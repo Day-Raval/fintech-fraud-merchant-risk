@@ -1,5 +1,6 @@
 project:
   name: fintech-fraud-merchant-risk
+  experiment_tag: "baseline_shift4p8"
   seed: 42
 
 data:
@@ -11,6 +12,7 @@ data:
   days: 120
   output_dir: "data"
   sigmoid_shift: 4.8   # try 4.0, 4.8, 5.5 for different fraud rates etc.
+  processed_dataset_path: "data/processed/fraud_dataset.csv"
 
 model:
   time_split_days_train: 90

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -146,6 +146,11 @@ def main() -> None:
         "threshold_report_valid": threshold_report,
     }
 
+    dataset_path = Path(cfg["data"]["processed_dataset_path"])  # or your path variable
+    df_rows = int(len(df))
+    df_start = str(df["timestamp"].min())
+    df_end = str(df["timestamp"].max())
+
     log_experiment({
         "stage": "train",
         "sigmoid_shift": float(cfg["data"].get("sigmoid_shift", 3.1)),
@@ -158,41 +163,55 @@ def main() -> None:
         "valid_recall_at_topk": float(metrics["valid_recall_at_topk"]),
         "test_recall_at_topk": float(metrics["test_recall_at_topk"]),
         "valid_net_cost": float(metrics["threshold_report_valid"]["net_cost_lower_is_better"]),
+        "log_tag": cfg.get("project", {}).get("experiment_tag", ""),
+        "dataset_path": str(dataset_path),
+        "dataset_rows": df_rows,
+        "dataset_start_ts": df_start,
+        "dataset_end_ts": df_end,
     })
+
+    # --- Per-experiment run directories ---
+    tag = cfg.get("project", {}).get("experiment_tag", "default_run")
+    tag = f"{tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    run_root = Path("artifacts/runs") / tag
+    model_dir = run_root / "models"
+    metrics_dir = run_root / "metrics"
+    report_dir = run_root / "reports"
+
+    model_dir.mkdir(parents=True, exist_ok=True)
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    report_dir.mkdir(parents=True, exist_ok=True)
 
     # Merchant risk table (built from TRAIN only to avoid leakage)
     merchant_risk = build_merchant_risk_table(train_df)
-    repo.models_dir.mkdir(parents=True, exist_ok=True)
-    repo.metrics_dir.mkdir(parents=True, exist_ok=True)
-    repo.reports_dir.mkdir(parents=True, exist_ok=True)
 
     # Save bundle: model + threshold + column spec for reason codes
     bundle = {
         "model": calibrated,
-        "threshold": best_t,
+        "threshold": float(best_t),
         "feature_spec": {
             "num_cols": num_cols,
             "cat_cols": cat_cols,
         },
     }
 
-    model_path = Path(cfg["artifacts"]["model_path"])
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(bundle, model_path)
+    # --- Save artifacts into THIS run folder ---
+    model_path = model_dir / "fraud_model.joblib"
+    merchant_risk_path = model_dir / "merchant_risk.joblib"
+    metrics_path = metrics_dir / "metrics.json"
+    threshold_report_path = metrics_dir / "threshold_report.json"
+    model_card_path = report_dir / "model_card.md"
 
-    merchant_risk_path = Path(cfg["artifacts"]["merchant_risk_path"])
-    merchant_risk_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(bundle, model_path)
     joblib.dump({"merchant_risk": merchant_risk}, merchant_risk_path)
 
-    # Write metrics
-    save_json(metrics, cfg["artifacts"]["metrics_path"])
-    save_json({"best_threshold": best_t, **threshold_report}, cfg["artifacts"]["threshold_report_path"])
+    save_json(metrics, str(metrics_path))
+    save_json({"best_threshold": float(best_t), **threshold_report}, str(threshold_report_path))
 
-    # Model card (simple, useful)
-    model_card = Path(cfg["artifacts"]["model_card_path"])
-    model_card.parent.mkdir(parents=True, exist_ok=True)
-    model_card.write_text(
-        f"""# Model Card — Fraud Detection (Project 1)
+
+    model_card_path.write_text(
+    f"""# Model Card — Fraud Detection (Project 1)
 
 ## Overview
 Binary classifier to predict transaction fraud probability for investigator prioritization.
@@ -216,12 +235,15 @@ Synthetic-but-realistic transactions generated with:
 - Alert budget: Top-K per day supported via dashboard and threshold tuning
 - Reason codes: rule-based, stable explanations for investigators
 """,
-        encoding="utf-8",
-    )
+    encoding="utf-8",
+)
 
     logger.info(f"Saved model: {model_path}")
     logger.info(f"Saved merchant risk table: {merchant_risk_path}")
-    logger.info(f"Saved metrics: {cfg['artifacts']['metrics_path']}")
+    logger.info(f"Saved metrics: {metrics_path}")
+    logger.info(f"Saved threshold report: {threshold_report_path}")
+    logger.info(f"Saved model card: {model_card_path}")
+    logger.info(f"Saved run artifacts under: {run_root}")
     logger.info(f"Best threshold: {best_t:.4f}")
 
 
