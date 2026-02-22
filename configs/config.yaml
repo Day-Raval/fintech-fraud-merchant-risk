@@ -1,6 +1,6 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "E3_aggressive_fp2_topk300_fn1"
+  experiment_tag: "E5_risk_averse_fp7p5_topk200_fn2"
   seed: 42
 
 data:
@@ -26,9 +26,9 @@ model_params:
   max_iter: 250
 
 decisioning:
-  alert_topk_per_day: 300
-  fp_investigation_cost: 2.0
-  fn_loss_multiplier: 1.0
+  alert_topk_per_day: 200
+  fp_investigation_cost: 7.5
+  fn_loss_multiplier: 2.0
 
 artifacts:
   model_path: "artifacts/models/fraud_model.joblib"
