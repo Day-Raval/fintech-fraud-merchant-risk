@@ -128,6 +128,14 @@ def main() -> None:
         fn_fraud_loss_multiplier=float(cfg["model"]["fn_fraud_loss_multiplier"]),
     )
 
+    logger.info(
+    "Decisioning params: fp_cost=%s | topk_per_day=%s | fn_multiplier=%s | tag=%s",
+    cfg.get("decisioning", {}).get("fp_investigation_cost"),
+    cfg.get("decisioning", {}).get("alert_topk_per_day"),
+    cfg.get("decisioning", {}).get("fn_loss_multiplier"),
+    cfg.get("project", {}).get("experiment_tag"),
+    )
+    
     # Best threshold via cost on validation
     best_t, threshold_report = find_best_threshold(
         y_true=y_valid,
