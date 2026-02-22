@@ -1,6 +1,6 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "A1_Trial_Run"
+  experiment_tag: "E1_baseline_fp7p5_topk250"
   seed: 42
 
 data:
@@ -18,14 +18,16 @@ model:
   time_split_days_train: 90
   time_split_days_valid: 15
   time_split_days_test: 15
-  alert_topk_per_day: 200
-  fp_investigation_cost: 7.50
-  fn_fraud_loss_multiplier: 1.00
-  decision_threshold: 0.80   # overridden by training threshold optimization
+
+model_params:
+  type: hgbt
+  learning_rate: 0.08
+  max_depth: 6
+  max_iter: 250
 
 decisioning:
-  fp_investigation_cost: 1.0
-  alert_topk_per_day: 150
+  alert_topk_per_day: 200
+  fp_investigation_cost: 7.5
   fn_loss_multiplier: 1.0
 
 artifacts:
