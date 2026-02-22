@@ -1,6 +1,6 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "baseline_shift4p8"
+  experiment_tag: "A1_baseline"
   seed: 42
 
 data:
@@ -22,6 +22,8 @@ model:
   fp_investigation_cost: 7.50
   fn_fraud_loss_multiplier: 1.00
   decision_threshold: 0.80   # overridden by training threshold optimization
+  fp_investigation_cost_multiplier: 7.5
+  alert_topk_per_day: 250
 
 artifacts:
   model_path: "artifacts/models/fraud_model.joblib"
