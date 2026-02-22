@@ -13,6 +13,7 @@ data:
   output_dir: "data"
   sigmoid_shift: 4.8   # try 4.0, 4.8, 5.5 for different fraud rates etc.
   processed_dataset_path: "data/processed/fraud_dataset.csv"
+  dataset_id: "1"
 
 model:
   time_split_days_train: 90
@@ -28,7 +29,7 @@ model_params:
 decisioning:
   alert_topk_per_day: 200
   fp_investigation_cost: 7.5
-  fn_loss_multiplier: 2.0
+  fn_loss_multiplier: 1.0
 
 artifacts:
   model_path: "artifacts/models/fraud_model.joblib"
