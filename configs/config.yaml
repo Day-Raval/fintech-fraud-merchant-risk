@@ -1,19 +1,19 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "E5_risk_averse_fp7p5_topk200_fn2"
+  experiment_tag: "E1_initial_experiment"
   seed: 42
 
 data:
+  dataset_id: "D1_synthetic_fraud_data"
+  output_dir: "data"
+
   n_customers: 5000
   n_merchants: 800
   n_cards: 7000
   n_transactions: 250000
   start_date: "2025-07-01"
   days: 120
-  output_dir: "data"
   sigmoid_shift: 4.8   # try 4.0, 4.8, 5.5 for different fraud rates etc.
-  processed_dataset_path: "data/processed/fraud_dataset.csv"
-  dataset_id: "1"
 
 model:
   time_split_days_train: 90
@@ -30,13 +30,6 @@ decisioning:
   alert_topk_per_day: 200
   fp_investigation_cost: 7.5
   fn_loss_multiplier: 1.0
-
-artifacts:
-  model_path: "artifacts/models/fraud_model.joblib"
-  merchant_risk_path: "artifacts/models/merchant_risk.joblib"
-  metrics_path: "artifacts/metrics/metrics.json"
-  threshold_report_path: "artifacts/metrics/threshold_report.json"
-  model_card_path: "artifacts/reports/model_card.md"
 
 monitoring:
   psi_bins: 10

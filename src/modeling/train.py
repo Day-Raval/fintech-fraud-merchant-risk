@@ -16,8 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from src.common.experiment_log import log_experiment
-from src.common.logging import get_logger
-from src.common.paths import RepoPaths
+from src.common.logger import get_logger
 from src.common.utils import load_yaml, save_json
 from src.data.schema import DATASET_FILE
 from src.features.preprocessing import FeatureSpec, build_preprocessor
@@ -107,21 +106,29 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_yaml(args.config)
-    repo = RepoPaths(Path(".").resolve())
     fs = FeatureSpec()
 
     # Validate required config keys
     _require_keys(cfg, "model", ["time_split_days_train", "time_split_days_valid", "time_split_days_test"])
     _require_keys(cfg, "decisioning", ["fp_investigation_cost", "alert_topk_per_day", "fn_loss_multiplier"])
+    _require_keys(cfg, "data", ["dataset_id", "output_dir"])
+
+    dataset_id = str(cfg["data"]["dataset_id"])
+    output_dir = str(cfg["data"]["output_dir"])
+    sigmoid_shift = float(cfg["data"].get("sigmoid_shift", 3.1))
 
     # Compute run_id ONCE and reuse everywhere
     base_tag = cfg.get("project", {}).get("experiment_tag", "default_run")
-    run_id = f"{base_tag}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_id = f"{base_tag}__{dataset_id}__{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    # Load processed dataset
-    proc_path = repo.processed_dir / DATASET_FILE
+    # Load processed dataset for THIS dataset_id
+    root = Path(".").resolve()
+    proc_path = root / output_dir / "datasets" / dataset_id / "processed" / DATASET_FILE
     if not proc_path.exists():
-        raise FileNotFoundError(f"Processed dataset not found: {proc_path}")
+        raise FileNotFoundError(
+            f"Processed dataset not found: {proc_path}\n"
+            f"Did you run build_dataset for dataset_id='{dataset_id}'?"
+        )
 
     df = pd.read_csv(proc_path, parse_dates=[fs.time_col])
 
@@ -138,6 +145,7 @@ def main() -> None:
     )
     train_df, valid_df, test_df = time_split(df, split)
 
+    logger.info("run_id=%s | dataset_id=%s | sigmoid_shift=%.3f", run_id, dataset_id, sigmoid_shift)
     logger.info(f"Split sizes: train={len(train_df)}, valid={len(valid_df)}, test={len(test_df)}")
     logger.info(
         f"Fraud rates: train={train_df[fs.target].mean():.3%}, "
@@ -158,7 +166,7 @@ def main() -> None:
     X_train = train_df.drop(columns=[fs.target])
     y_train = train_df[fs.target].astype(int).values
 
-    logger.info(f"Fitting base model ({model_cfg.get('type', 'hgbt')})...")
+    logger.info("Fitting base model (%s)...", model_cfg.get("type", "hgbt"))
     base_model.fit(X_train, y_train)
 
     # Calibration on validation
@@ -192,7 +200,7 @@ def main() -> None:
         fp_cost, topk_per_day, fn_mult, run_id
     )
 
-    # Threshold optimization (must respond to fp_cost/fn_mult)
+    # Threshold optimization
     best_t, threshold_report = find_best_threshold(
         y_true=y_valid,
         y_prob=valid_prob,
@@ -207,11 +215,9 @@ def main() -> None:
     valid_recall_topk = recall_at_topk(y_valid, valid_prob, k=topk_per_day * valid_days)
     test_recall_topk = recall_at_topk(y_test, test_prob, k=topk_per_day * test_days)
 
-    # Operational "prediction rate": how many transactions get flagged at best threshold
     valid_alert_rate = float((valid_prob >= best_t).mean())
     test_alert_rate = float((test_prob >= best_t).mean())
 
-    # FP/FN counts at chosen threshold (validation)
     pred_valid = (valid_prob >= best_t).astype(int)
     valid_fp = int(((pred_valid == 1) & (y_valid == 0)).sum())
     valid_fn = int(((pred_valid == 0) & (y_valid == 1)).sum())
@@ -233,7 +239,9 @@ def main() -> None:
         "model_params": model_cfg,
         "run_id": run_id,
         "dataset_path": str(proc_path),
-        "dataset_id": dataset_fingerprint(proc_path),
+        "dataset_id": dataset_id,  # <-- your explicit dataset id from config
+        "dataset_fingerprint": dataset_fingerprint(proc_path),  # <-- extra safety for apples-to-apples
+        "sigmoid_shift": sigmoid_shift,
     }
 
     # --- Save per-run artifacts ---
@@ -257,6 +265,9 @@ def main() -> None:
             "num_cols": list(num_cols),
             "cat_cols": list(cat_cols),
         },
+        "dataset_id": dataset_id,
+        "sigmoid_shift": sigmoid_shift,
+        "run_id": run_id,
     }
 
     model_path = model_dir / "fraud_model.joblib"
@@ -271,14 +282,15 @@ def main() -> None:
     save_json(metrics, str(metrics_path))
     save_json({"best_threshold": float(best_t), **threshold_report}, str(threshold_report_path))
 
-    # Model card (short + useful)
     model_card_path.write_text(
         f"""# Model Card — Fraud Detection
 
 ## Run
 - run_id: {run_id}
-- dataset_id: {metrics["dataset_id"]}
-- dataset_path: {metrics["dataset_path"]}
+- dataset_id: {dataset_id}
+- dataset_fingerprint: {metrics["dataset_fingerprint"]}
+- sigmoid_shift: {sigmoid_shift}
+- dataset_path: {proc_path}
 
 ## Decisioning Policy
 - fp_investigation_cost: {fp_cost}
@@ -301,7 +313,10 @@ def main() -> None:
     log_experiment({
         "run_id": run_id,
         "log_tag": base_tag,
-        "dataset_id": metrics["dataset_id"],
+
+        "dataset_id": dataset_id,
+        "dataset_fingerprint": metrics["dataset_fingerprint"],
+        "sigmoid_shift": sigmoid_shift,
 
         "fp_cost": fp_cost,
         "topk_per_day": topk_per_day,

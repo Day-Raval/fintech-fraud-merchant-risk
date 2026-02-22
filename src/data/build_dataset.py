@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.common.logging import get_logger
+from src.common.logger import get_logger
 from src.common.utils import load_yaml
 from src.data.schema import (
     CUSTOMERS_FILE,
@@ -98,8 +98,12 @@ def main() -> None:
 
     cfg = load_yaml(args.config)
     root = Path(".").resolve()
-    raw_dir = root / cfg["data"]["output_dir"] / "raw"
-    proc_dir = root / cfg["data"]["output_dir"] / "processed"
+    dataset_id = str(cfg["data"]["dataset_id"])
+    root = Path(".").resolve()
+
+    dataset_root = root / cfg["data"]["output_dir"] / "datasets" / dataset_id
+    raw_dir = dataset_root / "raw"
+    proc_dir = dataset_root / "processed"
     proc_dir.mkdir(parents=True, exist_ok=True)
 
     customers = pd.read_csv(raw_dir / CUSTOMERS_FILE)
