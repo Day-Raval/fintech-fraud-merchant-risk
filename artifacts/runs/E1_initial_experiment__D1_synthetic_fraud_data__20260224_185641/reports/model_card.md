@@ -1,9 +1,9 @@
 # Model Card — Fraud Detection
 
 ## Run
-- run_id: E1_initial_experiment__D1_synthetic_fraud_data__20260222_161038
+- run_id: E1_initial_experiment__D1_synthetic_fraud_data__20260224_185641
 - dataset_id: D1_synthetic_fraud_data
-- dataset_fingerprint: 9a0a18a9a4
+- dataset_fingerprint: 87a1e708d8
 - sigmoid_shift: 4.8
 - dataset_path: /mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D1_synthetic_fraud_data/processed/fraud_dataset.csv
 

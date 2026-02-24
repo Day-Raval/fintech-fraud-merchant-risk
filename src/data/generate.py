@@ -10,7 +10,7 @@ import pandas as pd
 
 from src.common.logger import get_logger
 from src.common.utils import load_yaml
-from src.common.experiment_log import log_experiment
+from src.common.experiment_log import log_experiment, GENERATION_CSV
 from src.data.schema import CUSTOMERS_FILE, MERCHANTS_FILE, CARDS_FILE, TRANSACTIONS_FILE
 
 logger = get_logger(__name__)
@@ -314,14 +314,17 @@ def main() -> None:
     logger.info("Saved raw dataset: %s", raw_dir)
     logger.info("Fraud rate: %.3f%%", 100.0 * fraud_rate)
 
-    log_experiment({
+    log_experiment(
+    {
         "stage": "generate",
         "dataset_id": g.dataset_id,
         "sigmoid_shift": shift,
         "n_transactions": int(g.n_transactions),
         "fraud_rate": fraud_rate,
         "raw_dir": str(raw_dir),
-    })
+    },
+    csv_path=GENERATION_CSV,
+    )
 
 
 if __name__ == "__main__":
