@@ -1,0 +1,34 @@
+{
+  "valid_pr_auc": 0.31390079642216306,
+  "test_pr_auc": 0.2923855858160402,
+  "valid_recall_at_topk": 0.39990234375,
+  "test_recall_at_topk": 0.3821499013806706,
+  "best_threshold_valid_cost": 0.06570904645476772,
+  "valid_alert_rate": 0.3381734074335828,
+  "test_alert_rate": 0.34032835058132105,
+  "threshold_report_valid": {
+    "fp": 9039.0,
+    "fn": 560.0,
+    "tp": 1488.0,
+    "fp_cost": 67792.5,
+    "fn_fraud_loss": 29323.879999999997,
+    "fraud_prevented": 147445.69,
+    "net_cost_lower_is_better": -50329.31
+  },
+  "decisioning": {
+    "fp_investigation_cost": 7.5,
+    "alert_topk_per_day": 200,
+    "fn_loss_multiplier": 1.0
+  },
+  "model_params": {
+    "type": "hgbt",
+    "learning_rate": 0.06,
+    "max_depth": 5,
+    "max_iter": 450
+  },
+  "run_id": "A2_experiment__D5_synthetic_fraud_data__20260224_193101",
+  "dataset_path": "/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D5_synthetic_fraud_data/processed/fraud_dataset.csv",
+  "dataset_id": "D5_synthetic_fraud_data",
+  "dataset_fingerprint": "8800acddc4",
+  "sigmoid_shift": 4.8
+}

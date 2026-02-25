@@ -1,10 +1,10 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "E3_experiment"
+  experiment_tag: "A2_experiment"
   seed: 42
 
 data:
-  dataset_id: "D3_synthetic_fraud_data"
+  dataset_id: "D5_synthetic_fraud_data"
   output_dir: "data"
 
   n_customers: 5000
@@ -13,7 +13,7 @@ data:
   n_transactions: 250000
   start_date: "2025-07-01"
   days: 120
-  sigmoid_shift: 4.0   # try 4.0, 4.8, 5.5 for different fraud rates etc.
+  sigmoid_shift: 4.8   # try 4.0, 4.8, 5.5 for different fraud rates etc.
 
 model:
   time_split_days_train: 90
@@ -22,9 +22,9 @@ model:
 
 model_params:
   type: hgbt
-  learning_rate: 0.08
-  max_depth: 6
-  max_iter: 250
+  learning_rate: 0.06
+  max_depth: 5
+  max_iter: 450
 
 decisioning:
   alert_topk_per_day: 200

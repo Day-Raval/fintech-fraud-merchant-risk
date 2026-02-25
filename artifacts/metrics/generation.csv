@@ -2,3 +2,5 @@ stage,dataset_id,sigmoid_shift,n_transactions,fraud_rate,raw_dir,run_ts
 generate,D1_synthetic_fraud_data,4.8,250000,0.066136,/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D1_synthetic_fraud_data/raw,2026-02-24T23:54:56.944153+00:00
 generate,D2_synthetic_fraud_data,5.5,250000,0.037064,/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D2_synthetic_fraud_data/raw,2026-02-25T00:13:38.670624+00:00
 generate,D3_synthetic_fraud_data,4.0,250000,0.121652,/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D3_synthetic_fraud_data/raw,2026-02-25T00:16:17.057497+00:00
+generate,D4_synthetic_fraud_data,4.8,250000,0.066136,/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D4_synthetic_fraud_data/raw,2026-02-25T00:25:49.874089+00:00
+generate,D5_synthetic_fraud_data,4.8,250000,0.066136,/mnt/c/Users/dayes/Production ML Systems/fintech-fraud-merchant-risk/data/datasets/D5_synthetic_fraud_data/raw,2026-02-25T00:29:50.710769+00:00
