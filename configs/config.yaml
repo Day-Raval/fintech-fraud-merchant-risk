@@ -1,10 +1,10 @@
 project:
   name: fintech-fraud-merchant-risk
-  experiment_tag: "E1_initial_experiment"
+  experiment_tag: "E3_experiment"
   seed: 42
 
 data:
-  dataset_id: "D1_synthetic_fraud_data"
+  dataset_id: "D3_synthetic_fraud_data"
   output_dir: "data"
 
   n_customers: 5000
@@ -13,7 +13,7 @@ data:
   n_transactions: 250000
   start_date: "2025-07-01"
   days: 120
-  sigmoid_shift: 4.8   # try 4.0, 4.8, 5.5 for different fraud rates etc.
+  sigmoid_shift: 4.0   # try 4.0, 4.8, 5.5 for different fraud rates etc.
 
 model:
   time_split_days_train: 90
