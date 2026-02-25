@@ -35,7 +35,9 @@ Planned near-term additions:
 - More modeling and feature engineering experiments
 - A fuller production API
 - A richer dashboard experience for monitoring and investigation workflows
+- Experiment and data versioning with DVC
 - Containerized model deployment using Docker on Kubernetes
+- Deployment to a cloud provider
 
 ## Repository Layout (high level)
 
