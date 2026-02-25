@@ -1,21 +1,52 @@
-**Goal**: Build a production-style fraud detection system that scores card transactions in real time and helps investigators act efficiently under operational constraints.
+# Fintech Fraud & Merchant Risk
 
-I am solving to: Predict the probability that a transaction is fraudulent before authorization completes, using customer/card/merchant/transaction signals.
+A production-style machine learning project for **real-time card transaction fraud detection** and **merchant risk scoring**.
 
-1. Enforce business constraints:
+## Project Goal
 
-- Fraud dollars prevented (catch high-$ fraud)
+Build a fraud detection system that can score transactions before authorization completes, while balancing business constraints such as:
 
-- Investigation cost / false positives (limit unnecessary alerts)
+- Preventing high-value fraud losses
+- Controlling false positives and investigation workload
+- Operating within alert volume limits (Top-K triage)
+- Maintaining low-latency inference for production use
 
-- Alert volume cap (only Top-K alerts/day)
+## Current Scope
 
-- Low latency (serve predictions fast; track p95)
+The repository currently includes:
 
-2. Outputs:
+- Synthetic data generation and dataset building pipelines
+- Feature preprocessing and training workflows
+- Fraud probability modeling and merchant risk modeling
+- Evaluation outputs (metrics, threshold reports, model cards)
+- Initial API and dashboard application scaffolding
 
-- Transaction-level fraud probability + decision (flag/pass)
+## Key Outputs
 
-- Human-friendly reason codes (why flagged)
+- Transaction-level fraud probability
+- Decision outcome (flag / pass)
+- Human-readable reason codes for flagged transactions
+- Merchant-level risk score based on observed behavior
 
-- Merchant risk score (aggregated from observed behavior)
+## Roadmap
+
+Planned near-term additions:
+
+- More modeling and feature engineering experiments
+- A fuller production API
+- A richer dashboard experience for monitoring and investigation workflows
+- Containerized model deployment using Docker on Kubernetes
+
+## Repository Layout (high level)
+
+- `src/data/` – data generation and dataset assembly
+- `src/features/` – preprocessing pipeline components
+- `src/modeling/` – training, evaluation, merchant risk, reason codes
+- `src/api/` – API service entrypoints and serving logic
+- `src/dashboard/` – dashboard application
+- `configs/` – experiment/configuration settings
+- `artifacts/` – run outputs, models, and metrics
+
+## Status
+
+This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, and deployment assets are added.
