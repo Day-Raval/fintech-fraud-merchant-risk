@@ -29,7 +29,8 @@ The repository currently includes:
 - Feature preprocessing and training workflows
 - Fraud probability modeling and merchant risk modeling
 - Evaluation outputs (metrics, threshold reports, model cards)
-- Initial API and dashboard scaffolding
+- A working FastAPI inference service with run loading and prediction endpoints
+- A working Streamlit dashboard for experiment monitoring and batch CSV scoring
 
 ## 🧠 Key Outputs
 
@@ -43,8 +44,8 @@ The repository currently includes:
 Planned near-term additions:
 
 - More modeling and feature engineering experiments
-- A fuller production API
-- A richer dashboard for monitoring and investigation workflows
+- Endpoint hardening (auth/rate limits/request validation policies)
+- Dashboard enhancements for deeper investigation workflows
 - Experiment and data versioning with DVC
 - Containerized model deployment using Docker on Kubernetes
 - Deployment to a cloud provider
@@ -61,7 +62,7 @@ Planned near-term additions:
 
 ---
 
-## 🚀 Quickstart: Execution Steps (through training + evaluation)
+## 🚀 Quickstart: End-to-End Execution Steps
 
 ### 1) Environment setup
 
@@ -114,6 +115,79 @@ Check these files from the latest run:
 
 - `artifacts/runs/<run_id>/metrics/metrics.json`
 - `artifacts/runs/<run_id>/metrics/threshold_report.json`
+
+### 6) Start the API (FastAPI)
+
+The API serves health checks, run management, and online single-transaction scoring.
+
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Useful endpoints:
+
+- `GET /health` → confirms service status and reports latest run ID
+- `GET /runs` → lists available run IDs from `artifacts/runs`
+- `POST /load?run_id=<run_id>` → loads a specific run (or latest run when omitted)
+- `POST /predict` → scores one transaction payload and returns fraud probability, threshold decision, and reason codes
+
+Open interactive API docs at:
+
+- `http://localhost:8000/docs`
+
+Example request:
+
+```bash
+curl -X POST 'http://localhost:8000/predict' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "data": {
+      "amount_usd": 725.0,
+      "channel": "online",
+      "merchant_country": "NG",
+      "mcc": "7995",
+      "card_present": 0,
+      "is_night": 1,
+      "card_txn_count_15m": 3,
+      "merchant_txn_count_1h": 24,
+      "distance_from_home_km": 180.0
+    }
+  }'
+```
+
+### 7) Start the Dashboard (Streamlit)
+
+The dashboard surfaces run KPIs, trend tracking, run artifact inspection, and batch scoring.
+
+```bash
+streamlit run src/dashboard/app.py
+```
+
+Then open:
+
+- `http://localhost:8501`
+
+What you can do in the dashboard:
+
+- Select any trained `run_id` from the sidebar
+- Review KPIs (threshold, PR-AUC, net cost, alert rate)
+- Inspect trends from `artifacts/metrics/experiments.csv` and `artifacts/metrics/generation.csv`
+- View full metrics JSON, threshold report JSON, and model card for the selected run
+- Upload a CSV for batch scoring and download a scored output file
+
+---
+
+## 🧪 Typical Local Workflow
+
+Run these commands in order for a full local cycle:
+
+```bash
+python -m src.data.generate --config configs/config.yaml
+python -m src.data.build_dataset --config configs/config.yaml
+python -m src.modeling.train --config configs/config.yaml
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+streamlit run src/dashboard/app.py
+```
 
 ---
 
