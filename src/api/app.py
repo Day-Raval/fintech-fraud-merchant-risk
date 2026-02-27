@@ -46,7 +46,12 @@ def runs() -> Dict[str, Any]:
 
 
 @app.post("/load")
-def load_run(run_id: Optional[str] = Query(default=None, description="Run ID folder under artifacts/runs. If omitted, loads latest.")) -> Dict[str, Any]:
+def load_run(
+    run_id: Optional[str] = Query(
+        default=None,
+        description="Run ID folder under artifacts/runs. If omitted, loads latest.",
+    )
+) -> Dict[str, Any]:
     try:
         loaded = service.load(run_id)
         return {"loaded_run_id": loaded.run.run_id, "root": str(loaded.run.root)}

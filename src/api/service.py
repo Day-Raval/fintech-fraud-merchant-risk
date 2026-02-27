@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, List
 
 import joblib
 import numpy as np
@@ -15,20 +15,16 @@ from src.common.run_registry import RunPaths, resolve_run, latest_run_id
 class LoadedArtifacts:
     """In-memory loaded artifacts for scoring."""
     run: RunPaths
-    model: Any                     # sklearn estimator (CalibratedClassifierCV)
+    model: Any
     threshold: float
     num_cols: List[str]
     cat_cols: List[str]
-    merchant_risk: Optional[pd.DataFrame]  # if available
+    merchant_risk: Optional[pd.DataFrame]
 
 
 class ArtifactService:
     """
     Loads a model run from artifacts/runs/<run_id>/... and serves predictions.
-
-    Supports:
-    - load specific run_id
-    - load latest available run
     """
 
     def __init__(self, runs_root: Path = Path("artifacts/runs")) -> None:
@@ -36,7 +32,6 @@ class ArtifactService:
         self._loaded: Optional[LoadedArtifacts] = None
 
     def load(self, run_id: Optional[str] = None) -> LoadedArtifacts:
-        """Load artifacts for a specific run_id (or latest if None)."""
         if run_id is None:
             run_id = latest_run_id(self.runs_root)
             if run_id is None:
@@ -51,18 +46,19 @@ class ArtifactService:
         num_cols = list(feature_spec.get("num_cols", []))
         cat_cols = list(feature_spec.get("cat_cols", []))
 
-        mr_obj = joblib.load(run.merchant_risk_path)
         merchant_risk = None
-        if isinstance(mr_obj, dict) and "merchant_risk" in mr_obj:
-            # Can be a DataFrame or dict-like
-            if isinstance(mr_obj["merchant_risk"], pd.DataFrame):
-                merchant_risk = mr_obj["merchant_risk"]
-            else:
-                # Try to coerce dict into DataFrame if possible
-                try:
-                    merchant_risk = pd.DataFrame(mr_obj["merchant_risk"])
-                except Exception:
-                    merchant_risk = None
+        try:
+            mr_obj = joblib.load(run.merchant_risk_path)
+            if isinstance(mr_obj, dict) and "merchant_risk" in mr_obj:
+                if isinstance(mr_obj["merchant_risk"], pd.DataFrame):
+                    merchant_risk = mr_obj["merchant_risk"]
+                else:
+                    try:
+                        merchant_risk = pd.DataFrame(mr_obj["merchant_risk"])
+                    except Exception:
+                        merchant_risk = None
+        except Exception:
+            merchant_risk = None
 
         self._loaded = LoadedArtifacts(
             run=run,
@@ -76,22 +72,15 @@ class ArtifactService:
 
     @property
     def loaded(self) -> LoadedArtifacts:
-        """Return loaded artifacts; load latest if not loaded yet."""
         if self._loaded is None:
             return self.load(None)
         return self._loaded
 
     def predict_one(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Score one transaction.
-
-        Input: dict of transaction fields (must include all model features used during training).
-        Output: probability + decision + reason codes.
-        """
         art = self.loaded
         df = pd.DataFrame([payload])
 
-        # Ensure missing columns exist (set NaN). This avoids KeyError and lets the pipeline handle missing.
+        # Ensure missing columns exist (NaN). Avoids KeyError.
         for col in (art.num_cols + art.cat_cols):
             if col not in df.columns:
                 df[col] = np.nan
@@ -117,26 +106,63 @@ class ArtifactService:
         merchant_risk: Optional[pd.DataFrame],
     ) -> List[str]:
         """
-        Simple, stable investigator-facing reason codes.
-        Uses only fields that commonly exist in your dataset.
+        Investigator-facing reason codes aligned with your CURRENT feature schema.
+
+        Supports both:
+        - raw payloads (timestamp/channel/mcc/merchant_country/etc.)
+        - engineered-feature payloads (is_foreign_merchant, card_txn_count_15m, etc.)
         """
         reasons: List[str] = []
 
         amt = _safe_float(x.get("amount_usd"))
+        merchant_country = (x.get("merchant_country") or "").strip()
+        channel = (x.get("channel") or "").strip()
+        mcc = str(x.get("mcc") or "").strip()
+
+        # engineered fields (preferred if present)
         is_foreign = _safe_int(x.get("is_foreign_merchant"))
         is_ecom = _safe_int(x.get("is_ecommerce"))
-        is_night = _safe_int(x.get("is_night"))
-        vel_15m = _safe_float(x.get("txn_count_15m"))
-        vel_60m = _safe_float(x.get("txn_count_60m"))
-        mcc_risky = _safe_int(x.get("is_risky_mcc"))
-        tenure_days = _safe_float(x.get("customer_tenure_days"))
+        risky_mcc = _safe_int(x.get("risky_mcc"))
+        hour = _safe_int(x.get("hour"))
+
+        v15 = _safe_float(x.get("card_txn_count_15m"))
+        v60 = _safe_float(x.get("card_txn_count_60m"))
+        s60 = _safe_float(x.get("card_amt_sum_60m"))
+        tenure_months = _safe_float(x.get("tenure_months"))
+        ratio = _safe_float(x.get("amount_to_limit_ratio"))
+
         merchant_id = x.get("merchant_id")
 
-        if prob >= threshold and prob >= 0.7:
+        # --- fallbacks if engineered fields missing ---
+        if is_foreign == 0 and merchant_country:
+            is_foreign = 1 if merchant_country.upper() != "US" else 0
+
+        if is_ecom == 0 and channel:
+            is_ecom = 1 if channel.lower() == "ecommerce" else 0
+
+        if risky_mcc == 0 and mcc:
+            risky_mcc = 1 if mcc in {"7995", "5967", "4829", "6011", "5944"} else 0
+
+        # derive hour from timestamp if needed
+        if hour == 0 and x.get("timestamp") is not None:
+            try:
+                ts = pd.to_datetime(x.get("timestamp"), errors="coerce")
+                if pd.notna(ts):
+                    hour = int(ts.hour)
+            except Exception:
+                pass
+
+        is_night = 1 if hour in {1, 2, 3, 4, 5} else 0
+
+        # --- reason rules ---
+        if prob >= threshold and prob >= 0.70:
             reasons.append("High model risk score")
 
         if amt is not None and amt >= 500:
             reasons.append("High transaction amount")
+
+        if ratio is not None and ratio >= 0.35:
+            reasons.append("High amount-to-limit ratio")
 
         if is_foreign == 1:
             reasons.append("Foreign merchant")
@@ -147,34 +173,38 @@ class ArtifactService:
         if is_night == 1:
             reasons.append("Late-night transaction")
 
-        if mcc_risky == 1:
+        if risky_mcc == 1:
             reasons.append("High-risk merchant category (MCC)")
 
-        if vel_15m is not None and vel_15m >= 3:
+        if v15 is not None and v15 >= 3:
             reasons.append("High short-window velocity (15m)")
 
-        if vel_60m is not None and vel_60m >= 6:
+        if v60 is not None and v60 >= 6:
             reasons.append("High medium-window velocity (60m)")
 
-        if tenure_days is not None and tenure_days <= 30:
+        if s60 is not None and s60 >= 1200:
+            reasons.append("High spend in last hour")
+
+        if tenure_months is not None and tenure_months <= 3:
             reasons.append("New customer tenure")
 
         # Merchant risk table (if available)
         if merchant_risk is not None and merchant_id is not None:
-            # Try common column names
             for mid_col in ["merchant_id", "merchant", "merchant_key"]:
                 if mid_col in merchant_risk.columns:
-                    row = merchant_risk[merchant_risk[mid_col] == merchant_id]
-                    if len(row) > 0:
-                        for risk_col in ["fraud_rate", "risk_score", "merchant_fraud_rate"]:
-                            if risk_col in row.columns:
-                                mr = float(row.iloc[0][risk_col])
-                                if mr >= 0.05:
-                                    reasons.append("Historically high-risk merchant")
-                                break
+                    try:
+                        row = merchant_risk[merchant_risk[mid_col] == merchant_id]
+                        if len(row) > 0:
+                            for risk_col in ["fraud_rate", "risk_score", "merchant_fraud_rate"]:
+                                if risk_col in row.columns:
+                                    mr = float(row.iloc[0][risk_col])
+                                    if mr >= 0.05:
+                                        reasons.append("Historically high-risk merchant")
+                                    break
+                    except Exception:
+                        pass
                     break
 
-        # Keep reasons deterministic and short
         if not reasons and prob >= threshold:
             reasons.append("Model risk above threshold")
 
@@ -183,7 +213,7 @@ class ArtifactService:
 
 def _safe_float(v: Any) -> Optional[float]:
     try:
-        if v is None:
+        if v is None or v == "":
             return None
         return float(v)
     except Exception:
@@ -192,6 +222,8 @@ def _safe_float(v: Any) -> Optional[float]:
 
 def _safe_int(v: Any) -> int:
     try:
-        return int(v) if v is not None else 0
+        if v is None or v == "":
+            return 0
+        return int(float(v))
     except Exception:
         return 0
