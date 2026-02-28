@@ -61,8 +61,133 @@ def money(x: Any) -> str:
         return str(x)
 
 
+def pct(x: Any) -> str:
+    try:
+        return f"{float(x) * 100:.2f}%"
+    except Exception:
+        return "N/A"
+
+
+def inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg-0: #f8fafc;
+            --bg-1: #e2e8f0;
+            --ink-0: #0f172a;
+            --ink-1: #334155;
+            --accent-0: #0ea5e9;
+            --accent-1: #14b8a6;
+            --card-bg: rgba(255, 255, 255, 0.80);
+            --card-border: rgba(15, 23, 42, 0.08);
+            --ok: #0f766e;
+        }
+
+        .stApp {
+            background:
+                radial-gradient(1200px 500px at -15% -20%, rgba(20, 184, 166, 0.22), transparent 60%),
+                radial-gradient(900px 450px at 120% 10%, rgba(14, 165, 233, 0.20), transparent 55%),
+                linear-gradient(165deg, var(--bg-0) 0%, var(--bg-1) 100%);
+            color: var(--ink-0);
+            font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        }
+
+        h1, h2, h3 {
+            letter-spacing: -0.01em;
+        }
+
+        div[data-testid="stMetric"] {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        div[data-testid="stMetricLabel"] p {
+            color: var(--ink-1);
+            font-weight: 600;
+            font-size: 0.80rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        div[data-testid="stMetricValue"] {
+            color: var(--ink-0);
+            font-weight: 700;
+        }
+
+        div[data-baseweb="tab-list"] {
+            gap: 8px;
+        }
+
+        button[data-baseweb="tab"] {
+            border: 1px solid var(--card-border) !important;
+            border-radius: 999px !important;
+            padding: 8px 16px !important;
+            background: rgba(255, 255, 255, 0.72) !important;
+            color: var(--ink-1) !important;
+            transition: all 0.2s ease;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: linear-gradient(90deg, var(--accent-0), var(--accent-1)) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+        }
+
+        [data-testid="stDataFrame"], [data-testid="stJson"] {
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+        }
+
+        code, pre {
+            font-family: "IBM Plex Mono", monospace !important;
+        }
+
+        .hero {
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 18px 20px;
+            background: linear-gradient(
+                135deg,
+                rgba(14, 165, 233, 0.11) 0%,
+                rgba(20, 184, 166, 0.10) 100%
+            );
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-kicker {
+            color: var(--ok);
+            font-size: 0.80rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.2rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
-    st.title("Fraud Ops Dashboard")
+    inject_styles()
+    st.title("Merchant Fraud Ops Intelligence")
+    st.markdown(
+        """
+        <div class="hero">
+            <div class="hero-kicker">Live Monitoring</div>
+            <div>Track model quality, threshold economics, and batch scoring outcomes for each experiment run.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     runs = list_runs(RUNS_ROOT)
     if not runs:
@@ -111,7 +236,7 @@ def main() -> None:
     k5.metric("Valid Net Cost", money(net_cost) if net_cost is not None else "N/A")
     k6.metric(
         "Valid Alert Rate",
-        f"{float(valid_alert_rate) * 100:.2f}%" if valid_alert_rate not in [None, ""] else "N/A",
+        pct(valid_alert_rate) if valid_alert_rate not in [None, ""] else "N/A",
     )
 
     st.divider()
@@ -178,7 +303,7 @@ def main() -> None:
 
     # ========== Tab 3: Selected Run ==========
     with tab3:
-        st.subheader("Selected Run — Artifacts & Evaluation")
+        st.subheader("Selected Run - Artifacts & Evaluation")
 
         c1, c2 = st.columns(2)
         with c1:
