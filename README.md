@@ -237,13 +237,6 @@ python -m src.modeling.train --config configs/config.yaml
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 streamlit run src/dashboard/app.py
 ```
-
----
-
-## ✅ Project Status
-
-This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, DVC integration, and cloud-ready deployment assets are added.
-
 ---
 
 ## Kubernetes Deployment (API + Dashboard)
@@ -303,3 +296,9 @@ Then open:
 
 - `http://localhost:8000/docs`
 - `http://localhost:8501`
+
+---
+
+## ✅ Project Status
+
+This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, and DVC integrations are being added.
