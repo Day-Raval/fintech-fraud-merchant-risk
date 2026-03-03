@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-dashboard
+  namespace: fintech-risk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fraud-dashboard
+  template:
+    metadata:
+      labels:
+        app: fraud-dashboard
+    spec:
+      containers:
+        - name: fraud-dashboard
+          image: fintech-risk-dashboard:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8501
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          volumeMounts:
+            - name: artifacts
+              mountPath: /app/artifacts
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: artifacts-pvc
+        - name: data
+          persistentVolumeClaim:
+            claimName: data-pvc
