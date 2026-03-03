@@ -243,3 +243,63 @@ streamlit run src/dashboard/app.py
 ## ✅ Project Status
 
 This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, DVC integration, and cloud-ready deployment assets are added.
+
+---
+
+## Kubernetes Deployment (API + Dashboard)
+
+Use the manifests in `k8s/` to deploy the Dockerized API and dashboard.
+
+### 1) Build images
+
+From repo root:
+
+```bash
+docker build -f docker/Dockerfile.api -t fintech-risk-api:latest .
+docker build -f docker/Dockerfile.dashboard -t fintech-risk-dashboard:latest .
+```
+
+### 2) Push to a registry (if your cluster cannot use local images)
+
+```bash
+docker tag fintech-risk-api:latest <your-registry>/fintech-risk-api:latest
+docker tag fintech-risk-dashboard:latest <your-registry>/fintech-risk-dashboard:latest
+docker push <your-registry>/fintech-risk-api:latest
+docker push <your-registry>/fintech-risk-dashboard:latest
+```
+
+Then update `image:` in:
+
+- `k8s/api-deployment.yaml`
+- `k8s/dashboard-deployment.yaml`
+
+### 3) Apply manifests
+
+```bash
+kubectl apply -k k8s/
+```
+
+### 4) Verify resources
+
+```bash
+kubectl -n fintech-risk get pods,svc,pvc,ingress
+```
+
+### 5) Access services
+
+Ingress (from `k8s/ingress.yaml`):
+
+- `http://fintech-risk.local/api/health`
+- `http://fintech-risk.local/`
+
+Or port-forward:
+
+```bash
+kubectl -n fintech-risk port-forward svc/fraud-api 8000:8000
+kubectl -n fintech-risk port-forward svc/fraud-dashboard 8501:8501
+```
+
+Then open:
+
+- `http://localhost:8000/docs`
+- `http://localhost:8501`
