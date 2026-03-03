@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: fintech-risk-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../artifacts:/app/artifacts
+      - ../data:/app/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: fintech-risk-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../artifacts:/app/artifacts
+      - ../data:/app/data
+    depends_on:
+      - api
+    restart: unless-stopped
