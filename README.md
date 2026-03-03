@@ -64,6 +64,55 @@ Planned near-term additions:
 
 ## 🚀 Quickstart: End-to-End Execution Steps
 
+## 🐳 Container Setup and Run with Docker
+
+Use Docker when you want to run the API and dashboard without creating a local Python virtual environment.
+
+### 1) Prerequisites
+
+- Docker Engine + Docker Compose plugin installed
+
+### 2) Build and start containers
+
+From the repository root:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build -d
+```
+
+This will build and start:
+
+- `fintech-risk-api` on `http://localhost:8000`
+- `fintech-risk-dashboard` on `http://localhost:8501`
+
+### 3) Check container status and logs
+
+```bash
+docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml logs -f api
+docker compose -f docker/docker-compose.yml logs -f dashboard
+```
+
+### 4) Stop containers
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
+### 5) Optional: run data generation + training before using `/predict`
+
+If you want prediction endpoints and dashboard run metrics to use fresh local artifacts:
+
+```bash
+python -m src.data.generate --config configs/config.yaml
+python -m src.data.build_dataset --config configs/config.yaml
+python -m src.modeling.train --config configs/config.yaml
+```
+
+Because `data/` and `artifacts/` are mounted into both containers, newly generated files are available immediately.
+
+---
+
 ### 1) Environment setup
 
 ```bash
