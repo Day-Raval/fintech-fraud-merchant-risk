@@ -8,7 +8,7 @@
   <img alt="Deployment" src="https://img.shields.io/badge/Deployment-Docker%20%2B%20Kubernetes-0db7ed?logo=kubernetes&logoColor=white" />
 </p>
 
-A production-style machine learning project for **real-time card transaction fraud detection** and **merchant risk scoring**.
+A production-grade machine learning system for **real-time card transaction fraud detection** and **merchant risk scoring**.
 
 ---
 
