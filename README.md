@@ -10,6 +10,9 @@
 
 A production-grade machine learning system for **real-time card transaction fraud detection** and **merchant risk scoring**.
 
+<img width="975" height="650" alt="image" src="https://github.com/user-attachments/assets/9ddade6f-b376-4ea5-9a63-0a2f59d85de1" />
+
+
 ---
 
 ## 🎯 Project Goal
