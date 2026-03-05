@@ -9,3 +9,5 @@ joblib==1.4.2
 pyyaml==6.0.2
 matplotlib==3.9.2
 streamlit==1.40.2
+prometheus-client==0.21.1
+pytest==8.3.4

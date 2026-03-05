@@ -18,6 +18,7 @@ dependencies = [
   "uvicorn>=0.23",
   "pydantic>=2.0",
   "streamlit>=1.30",
+  "prometheus-client>=0.21",
 ]
 
 [tool.setuptools]

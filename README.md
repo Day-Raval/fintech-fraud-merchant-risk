@@ -99,6 +99,25 @@ docker compose -f docker/docker-compose.yml logs -f dashboard
 docker compose -f docker/docker-compose.yml down
 ```
 
+### 4.1) Monitoring stack (Prometheus + Grafana)
+
+The Compose stack also includes:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (default login `admin` / `admin`)
+- API metrics endpoint: `http://localhost:8000/metrics`
+
+Start full stack:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build -d
+```
+
+Grafana is provisioned with:
+
+- A Prometheus datasource
+- A default dashboard: `Fintech Fraud API Monitoring`
+
 ### 5) Optional: run data generation + training before using `/predict`
 
 If you want prediction endpoints and dashboard run metrics to use fresh local artifacts:
@@ -243,6 +262,25 @@ streamlit run src/dashboard/app.py
 ## ✅ Project Status
 
 This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, DVC integration, and cloud-ready deployment assets are added.
+
+---
+
+## CI/CD Pipeline (GitHub Actions)
+
+GitHub Actions workflow file:
+
+- `.github/workflows/ci-cd-monitoring.yml`
+
+Pipeline stages:
+
+- `test`: install dependencies and run `pytest`
+- `docker-build`: build API and dashboard images
+- `monitoring-smoke`: start API + Prometheus via Docker Compose and verify:
+  - `/metrics` responds
+  - Prometheus target for `fraud-api` is `up`
+- `publish-images` (pushes on `main`/`master`): publishes Docker images to GHCR
+  - `ghcr.io/<owner>/<repo>/fintech-risk-api`
+  - `ghcr.io/<owner>/<repo>/fintech-risk-dashboard`
 
 ---
 
