@@ -12,10 +12,7 @@ Production-style machine learning system for real-time card fraud detection and 
 [![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?logo=docker&logoColor=white)](#)
 [![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?logo=kubernetes&logoColor=white)](#)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](#)
-[![Workflow Status](https://github.com/<OWNER>/<REPO>/actions/workflows/ci-cd-monitoring.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci-cd-monitoring.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-Replace `<OWNER>/<REPO>` in the workflow badge with your actual GitHub repository path.
 
 ## Architecture Diagrams
 
