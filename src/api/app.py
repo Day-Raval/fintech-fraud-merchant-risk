@@ -78,7 +78,7 @@ async def prometheus_http_metrics(request, call_next):
 @app.get("/health")
 def health() -> Dict[str, Any]:
     rid = latest_run_id(Path("artifacts/runs"))
-    return {"status": "ok", "latest_run_id": rid}
+    return {"health": "up", "latest_run_id": rid}
 
 
 @app.get("/runs")

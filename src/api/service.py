@@ -10,7 +10,6 @@ import pandas as pd
 
 from src.common.run_registry import RunPaths, resolve_run, latest_run_id
 
-
 @dataclass
 class LoadedArtifacts:
     """In-memory loaded artifacts for scoring."""
