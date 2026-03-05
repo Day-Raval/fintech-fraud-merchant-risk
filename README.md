@@ -1,216 +1,177 @@
-# 🛡️ Fintech Fraud & Merchant Risk
+# Fintech Fraud and Merchant Risk
 
-<p align="left">
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white" />
-  <img alt="ML" src="https://img.shields.io/badge/ML-Fraud%20Detection-6A1B9A" />
-  <img alt="API" src="https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white" />
-  <img alt="Dashboard" src="https://img.shields.io/badge/Dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white" />
-  <img alt="Deployment" src="https://img.shields.io/badge/Deployment-Docker%20%2B%20Kubernetes-0db7ed?logo=kubernetes&logoColor=white" />
-</p>
+Production-style machine learning system for real-time card fraud detection and merchant risk scoring, with API observability and CI/CD.
 
-A production-grade machine learning system for **real-time card transaction fraud detection** and **merchant risk scoring**.
+## Badges
 
-<img width="975" height="650" alt="image" src="https://github.com/user-attachments/assets/9ddade6f-b376-4ea5-9a63-0a2f59d85de1" />
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](#)
+[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](#)
+[![Prometheus](https://img.shields.io/badge/Monitoring-Prometheus-E6522C?logo=prometheus&logoColor=white)](#)
+[![Grafana](https://img.shields.io/badge/Visualization-Grafana-F46800?logo=grafana&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Deployment-Docker-2496ED?logo=docker&logoColor=white)](#)
+[![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?logo=kubernetes&logoColor=white)](#)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](#)
+[![Workflow Status](https://github.com/<OWNER>/<REPO>/actions/workflows/ci-cd-monitoring.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci-cd-monitoring.yml)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+Replace `<OWNER>/<REPO>` in the workflow badge with your actual GitHub repository path.
 
----
+## Architecture Diagrams
 
-## 🎯 Project Goal
+### System Architecture
 
-Predict whether a transaction is fraudulent **before authorization completes** while balancing operational constraints:
+```mermaid
+flowchart LR
+    A[Data Generation\nsrc/data/generate.py] --> B[Dataset Build\nsrc/data/build_dataset.py]
+    B --> C[Model Training\nsrc/modeling/train.py]
+    C --> D[Artifacts\nartifacts/runs + artifacts/metrics]
 
-- 💸 Prevent high-value fraud losses
-- 🧾 Control false positives and investigation workload
-- 🚦 Respect alert volume limits (Top-K triage)
-- ⚡ Maintain low-latency inference for production systems
+    D --> E[FastAPI Service\nsrc/api/app.py]
+    D --> F[Streamlit Dashboard\nsrc/dashboard/app.py]
 
-## 📦 Current Scope
+    U1[API Consumer] --> E
+    U2[Analyst] --> F
+```
 
-The repository currently includes:
+### Observability Architecture
 
-- Synthetic data generation and dataset building pipelines
-- Feature preprocessing and training workflows
-- Fraud probability modeling and merchant risk modeling
-- Evaluation outputs (metrics, threshold reports, model cards)
-- A working FastAPI inference service with run loading and prediction endpoints
-- A working Streamlit dashboard for experiment monitoring and batch CSV scoring
+```mermaid
+flowchart LR
+    E[FastAPI /metrics] --> P[Prometheus\nscrape interval 15s]
+    P --> G[Grafana\nProvisioned Datasource + Dashboard]
+    G --> O[Ops / Monitoring Team]
+```
 
-## 🧠 Key Outputs
+### CI/CD and Delivery Flow
 
-- Transaction-level fraud probability
-- Decision outcome (flag / pass)
-- Human-readable reason codes for flagged transactions
-- Merchant-level risk score based on observed behavior
+```mermaid
+flowchart LR
+    Dev[Push / Pull Request] --> GH[GitHub Actions\nci-cd-monitoring.yml]
+    GH --> T[Test Job\npytest]
+    T --> B[Docker Build Job]
+    B --> M[Monitoring Smoke Job\napi + prometheus checks]
+    M --> R[Publish Job\nGHCR images on main/master]
+```
 
-## 🗺️ Roadmap
+## What This Repository Includes
 
-Planned near-term additions:
+- Synthetic data generation and dataset build pipelines
+- Fraud model training and evaluation artifacts
+- FastAPI inference service (`/health`, `/runs`, `/load`, `/predict`, `/metrics`)
+- Streamlit dashboard for run monitoring and batch scoring
+- Docker Compose stack with:
+  - API
+  - Dashboard
+  - Prometheus
+  - Grafana
+- GitHub Actions CI/CD pipeline:
+  - test
+  - docker build
+  - monitoring smoke tests
+  - image publish to GHCR
 
-- More modeling and feature engineering experiments
-- Endpoint hardening (auth/rate limits/request validation policies)
-- Dashboard enhancements for deeper investigation workflows
-- Experiment and data versioning with DVC
-- Containerized model deployment using Docker on Kubernetes
-- Deployment to a cloud provider
+## Repository Layout
 
-## 🏗️ Repository Layout (high level)
+- `src/data/`: data generation and dataset assembly
+- `src/features/`: preprocessing
+- `src/modeling/`: training, evaluation, reason codes, merchant risk
+- `src/api/`: FastAPI app and serving logic
+- `src/dashboard/`: Streamlit dashboard
+- `configs/`: configuration
+- `docker/`: Dockerfiles, Compose, Prometheus and Grafana config
+- `k8s/`: Kubernetes manifests
+- `artifacts/`: runs, metrics, model outputs
 
-- `src/data/` – data generation and dataset assembly
-- `src/features/` – preprocessing pipeline components
-- `src/modeling/` – training, evaluation, merchant risk, reason codes
-- `src/api/` – API service entrypoints and serving logic
-- `src/dashboard/` – dashboard application
-- `configs/` – experiment/configuration settings
-- `artifacts/` – run outputs, models, and metrics
+## Quick Start with Docker (Recommended)
 
----
+Prerequisites:
 
-## 🚀 Quickstart: End-to-End Execution Steps
+- Docker Engine
+- Docker Compose plugin
 
-## 🐳 Container Setup and Run with Docker
-
-Use Docker when you want to run the API and dashboard without creating a local Python virtual environment.
-
-### 1) Prerequisites
-
-- Docker Engine + Docker Compose plugin installed
-
-### 2) Build and start containers
-
-From the repository root:
+From repo root:
 
 ```bash
 docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-This will build and start:
+Services:
 
-- `fintech-risk-api` on `http://localhost:8000`
-- `fintech-risk-dashboard` on `http://localhost:8501`
-
-### 3) Check container status and logs
-
-```bash
-docker compose -f docker/docker-compose.yml ps
-docker compose -f docker/docker-compose.yml logs -f api
-docker compose -f docker/docker-compose.yml logs -f dashboard
-```
-
-### 4) Stop containers
-
-```bash
-docker compose -f docker/docker-compose.yml down
-```
-
-### 4.1) Monitoring stack (Prometheus + Grafana)
-
-The Compose stack also includes:
-
+- API: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+- API metrics: `http://localhost:8000/metrics`
+- Dashboard: `http://localhost:8501`
 - Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (default login `admin` / `admin`)
-- API metrics endpoint: `http://localhost:8000/metrics`
+- Grafana: `http://localhost:3000` (default `admin` / `admin`)
 
-Start full stack:
-
-```bash
-docker compose -f docker/docker-compose.yml up --build -d
-```
-
-Grafana is provisioned with:
-
-- A Prometheus datasource
-- A default dashboard: `Fintech Fraud API Monitoring`
-
-### 5) Optional: run data generation + training before using `/predict`
-
-If you want prediction endpoints and dashboard run metrics to use fresh local artifacts:
+Stop:
 
 ```bash
-python -m src.data.generate --config configs/config.yaml
-python -m src.data.build_dataset --config configs/config.yaml
-python -m src.modeling.train --config configs/config.yaml
+docker compose -f docker/docker-compose.yml down -v
 ```
 
-Because `data/` and `artifacts/` are mounted into both containers, newly generated files are available immediately.
+## Observability and Monitoring
 
----
+### Prometheus Metrics Exposed by API
 
-### 1) Environment setup
+- `fraud_api_http_requests_total{method,path,status_code}`
+- `fraud_api_http_request_duration_seconds`
+- `fraud_api_predictions_total{result}`
+- `fraud_api_prediction_duration_seconds`
+
+### Prometheus Configuration
+
+- File: `docker/prometheus/prometheus.yml`
+- Scrapes API metrics from `api:8000/metrics`
+
+### Grafana Provisioning
+
+- Datasource provisioning: `docker/grafana/provisioning/datasources/datasource.yml`
+- Dashboard provisioning: `docker/grafana/provisioning/dashboards/dashboards.yml`
+- Preloaded dashboard JSON:
+  - `docker/grafana/dashboards/fraud-api-monitoring.json`
+
+Dashboard panels include:
+
+- Request rate by path
+- HTTP P95 latency
+- Prediction outcomes
+- 4xx/5xx error rates
+
+## Local Python Workflow (Without Docker)
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -U pip
 pip install -r requirements.txt
 pip install -e .
 ```
 
-### 2) Generate synthetic raw data
+Run full pipeline:
 
 ```bash
 python -m src.data.generate --config configs/config.yaml
-```
-
-This creates raw files under:
-
-- `data/datasets/<dataset_id>/raw/customers.csv`
-- `data/datasets/<dataset_id>/raw/merchants.csv`
-- `data/datasets/<dataset_id>/raw/cards.csv`
-- `data/datasets/<dataset_id>/raw/transactions.csv`
-
-### 3) Build processed training dataset
-
-```bash
 python -m src.data.build_dataset --config configs/config.yaml
-```
-
-This writes:
-
-- `data/datasets/<dataset_id>/processed/fraud_dataset.csv`
-
-### 4) Train model + run evaluation metrics
-
-```bash
 python -m src.modeling.train --config configs/config.yaml
-```
-
-Training run artifacts are saved under:
-
-- `artifacts/runs/<run_id>/models/`
-- `artifacts/runs/<run_id>/metrics/`
-- `artifacts/runs/<run_id>/reports/model_card.md`
-
-### 5) Review metrics
-
-Check these files from the latest run:
-
-- `artifacts/runs/<run_id>/metrics/metrics.json`
-- `artifacts/runs/<run_id>/metrics/threshold_report.json`
-
-### 6) Start the API (FastAPI)
-
-The API serves health checks, run management, and online single-transaction scoring.
-
-```bash
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+streamlit run src/dashboard/app.py
 ```
 
-Useful endpoints:
+## API Endpoints
 
-- `GET /health` → confirms service status and reports latest run ID
-- `GET /runs` → lists available run IDs from `artifacts/runs`
-- `POST /load?run_id=<run_id>` → loads a specific run (or latest run when omitted)
-- `POST /predict` → scores one transaction payload and returns fraud probability, threshold decision, and reason codes
-
-Open interactive API docs at:
-
-- `http://localhost:8000/docs`
+- `GET /health`: service health and latest run id
+- `GET /runs`: available run ids
+- `POST /load?run_id=<run_id>`: load selected run (or latest)
+- `POST /predict`: score one transaction payload
+- `GET /metrics`: Prometheus metrics endpoint
 
 Example request:
 
 ```bash
-curl -X POST 'http://localhost:8000/predict' \
-  -H 'Content-Type: application/json' \
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
   -d '{
     "data": {
       "amount_usd": 725.0,
@@ -226,120 +187,44 @@ curl -X POST 'http://localhost:8000/predict' \
   }'
 ```
 
-### 7) Start the Dashboard (Streamlit)
+## CI/CD with GitHub Actions
 
-The dashboard surfaces run KPIs, trend tracking, run artifact inspection, and batch scoring.
-
-```bash
-streamlit run src/dashboard/app.py
-```
-
-Then open:
-
-- `http://localhost:8501`
-
-What you can do in the dashboard:
-
-- Select any trained `run_id` from the sidebar
-- Review KPIs (threshold, PR-AUC, net cost, alert rate)
-- Inspect trends from `artifacts/metrics/experiments.csv` and `artifacts/metrics/generation.csv`
-- View full metrics JSON, threshold report JSON, and model card for the selected run
-- Upload a CSV for batch scoring and download a scored output file
-
----
-
-## 🧪 Typical Local Workflow
-
-Run these commands in order for a full local cycle:
-
-```bash
-python -m src.data.generate --config configs/config.yaml
-python -m src.data.build_dataset --config configs/config.yaml
-python -m src.modeling.train --config configs/config.yaml
-uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
-streamlit run src/dashboard/app.py
-```
----
-
-## CI/CD Pipeline (GitHub Actions)
-
-GitHub Actions workflow file:
+Workflow file:
 
 - `.github/workflows/ci-cd-monitoring.yml`
 
-Pipeline stages:
+Jobs:
 
-- `test`: install dependencies and run `pytest`
+- `test`: install deps and run `pytest`
 - `docker-build`: build API and dashboard images
-- `monitoring-smoke`: start API + Prometheus via Docker Compose and verify:
+- `monitoring-smoke`: start `api + prometheus`, verify:
   - `/metrics` responds
-  - Prometheus target for `fraud-api` is `up`
-- `publish-images` (pushes on `main`/`master`): publishes Docker images to GHCR
+  - Prometheus target health is `up`
+- `publish-images`: on push to `main`/`master`, publish to GHCR:
   - `ghcr.io/<owner>/<repo>/fintech-risk-api`
   - `ghcr.io/<owner>/<repo>/fintech-risk-dashboard`
 
----
+## Kubernetes Deployment
 
-## Kubernetes Deployment (API + Dashboard)
+Use manifests in `k8s/`.
 
-Use the manifests in `k8s/` to deploy the Dockerized API and dashboard.
-
-### 1) Build images
-
-From repo root:
+Build images:
 
 ```bash
 docker build -f docker/Dockerfile.api -t fintech-risk-api:latest .
 docker build -f docker/Dockerfile.dashboard -t fintech-risk-dashboard:latest .
 ```
 
-### 2) Push to a registry (if your cluster cannot use local images)
-
-```bash
-docker tag fintech-risk-api:latest <your-registry>/fintech-risk-api:latest
-docker tag fintech-risk-dashboard:latest <your-registry>/fintech-risk-dashboard:latest
-docker push <your-registry>/fintech-risk-api:latest
-docker push <your-registry>/fintech-risk-dashboard:latest
-```
-
-Then update `image:` in:
-
-- `k8s/api-deployment.yaml`
-- `k8s/dashboard-deployment.yaml`
-
-### 3) Apply manifests
+Apply:
 
 ```bash
 kubectl apply -k k8s/
-```
-
-### 4) Verify resources
-
-```bash
 kubectl -n fintech-risk get pods,svc,pvc,ingress
 ```
 
-### 5) Access services
-
-Ingress (from `k8s/ingress.yaml`):
-
-- `http://fintech-risk.local/api/health`
-- `http://fintech-risk.local/`
-
-Or port-forward:
+Port-forward:
 
 ```bash
 kubectl -n fintech-risk port-forward svc/fraud-api 8000:8000
 kubectl -n fintech-risk port-forward svc/fraud-dashboard 8501:8501
 ```
-
-Then open:
-
-- `http://localhost:8000/docs`
-- `http://localhost:8501`
-
----
-
-## ✅ Project Status
-
-This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, and DVC integrations are being added.
