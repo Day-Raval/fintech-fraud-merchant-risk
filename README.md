@@ -8,7 +8,10 @@
   <img alt="Deployment" src="https://img.shields.io/badge/Deployment-Docker%20%2B%20Kubernetes-0db7ed?logo=kubernetes&logoColor=white" />
 </p>
 
-A production-style machine learning project for **real-time card transaction fraud detection** and **merchant risk scoring**.
+A production-grade machine learning system for **real-time card transaction fraud detection** and **merchant risk scoring**.
+
+<img width="975" height="650" alt="image" src="https://github.com/user-attachments/assets/9ddade6f-b376-4ea5-9a63-0a2f59d85de1" />
+
 
 ---
 
@@ -256,13 +259,6 @@ python -m src.modeling.train --config configs/config.yaml
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 streamlit run src/dashboard/app.py
 ```
-
----
-
-## ✅ Project Status
-
-This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, DVC integration, and cloud-ready deployment assets are added.
-
 ---
 
 ## CI/CD Pipeline (GitHub Actions)
@@ -341,3 +337,9 @@ Then open:
 
 - `http://localhost:8000/docs`
 - `http://localhost:8501`
+
+---
+
+## ✅ Project Status
+
+This project is actively evolving. Expect regular updates as new experiments, API capabilities, dashboard functionality, and DVC integrations are being added.
