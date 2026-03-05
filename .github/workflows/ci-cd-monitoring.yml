@@ -62,14 +62,28 @@ jobs:
 
       - name: Check Prometheus target status
         run: |
+          set -euo pipefail
+          ok=0
           for i in {1..20}; do
-            if curl -sf http://localhost:9090/api/v1/targets > /tmp/targets.json; then
+            if ! curl -sf http://localhost:9090/api/v1/targets > /tmp/targets.json; then
+              sleep 3
+              continue
+            fi
+
+            if python3 -c "import json; d=json.load(open('/tmp/targets.json')); ts=d.get('data',{}).get('activeTargets',[]); ok=any((t.get('health')=='up') and ((t.get('labels',{}) or {}).get('job')=='fraud-api' or t.get('scrapePool')=='fraud-api') for t in ts); raise SystemExit(0 if ok else 1)"; then
+              ok=1
               break
             fi
+
             sleep 3
           done
-          grep -q "\"health\":\"up\"" /tmp/targets.json
-          grep -q "fraud-api" /tmp/targets.json
+
+          if [ "$ok" -ne 1 ]; then
+            echo "Prometheus did not report an 'up' target for job 'fraud-api' within the timeout."
+            echo "Last /api/v1/targets response:"
+            cat /tmp/targets.json || true
+            exit 1
+          fi
 
       - name: Shutdown stack
         if: always()
