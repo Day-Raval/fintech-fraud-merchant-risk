@@ -1,4 +1,4 @@
-# Fintech Fraud and Merchant Risk
+# FinSentry AI
 
 Production-style machine learning system for real-time card fraud detection and merchant risk scoring, with API observability and CI/CD.
 
